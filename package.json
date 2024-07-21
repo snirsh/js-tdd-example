@@ -1,0 +1,26 @@
+{
+  "name": "js-tdd",
+  "version": "1.0.0",
+  "description": "TDD approach to learning JS",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "test": "jest --watch",
+    "test:dom-manipulation": "jest tests/dom-manipulation --watch",
+    "test:events": "jest tests/events --watch"
+  },
+  "keywords": [
+    "javascript",
+    "dom",
+    "events",
+    "tdd"
+  ],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "jest": "^27.0.6",
+    "jest-environment-jsdom": "^27.0.6",
+    "jest-watch-typeahead": "^2.2.2",
+    "prompts": "^2.4.1"
+  }
+}
