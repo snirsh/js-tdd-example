@@ -1,4 +1,4 @@
-const addClickListener = require('../../events/addClickListener');
+const addClickListener = require('../../subjects/events/addClickListener');
 
 describe('addClickListener', () => {
     test('adds a click event listener to the element', () => {

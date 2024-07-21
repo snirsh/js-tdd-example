@@ -1,4 +1,4 @@
-const createElement = require('../../dom-manipulation/createElement');
+const createElement = require('../../subjects/dom-manipulation/createElement');
 
 describe('createElement', () => {
     beforeEach(() => {
