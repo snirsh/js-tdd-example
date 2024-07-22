@@ -1,72 +1,25 @@
 // index.js
 const prompts = require('prompts');
-const runTests = require('./testRunner');
 const path = require('path');
 const chalk = require('chalk');
 const chokidar = require('chokidar');
 const readline = require('readline');
 const fs = require('fs');
 
-const { updateProgress, isTestCompleted, loadProgress, saveProgress} = require('./progressTracker');
-
-const subjects = {
-    'dom-manipulation': {
-        name: 'DOM Manipulation',
-        tests: {
-            createElement: {
-                name: 'Create Element',
-                description: 'Create a new element and add it to the DOM',
-                hint: 'Use document.createElement() to create the element and appendChild() to add it to the DOM'
-            },
-            modifyElement: {
-                name: 'Modify Element',
-                description: 'Modify an existing element in the DOM',
-                hint: 'Use methods like setAttribute(), classList.add(), or textContent to modify the element'
-            },
-            removeElement: {
-                name: 'Remove Element',
-                description: 'Remove an element from the DOM',
-                hint: 'Use removeChild() or remove() to delete the element from its parent'
-            }
-        }
-    },
-    events: {
-        name: 'Events',
-        tests: {
-            addClickListener: {
-                name: 'Add Click Listener',
-                description: 'Attach a click event listener to an element',
-                hint: 'Use the addEventListener() method with the "click" event type'
-            },
-            addEventListener: {
-                name: 'Add Event Listener',
-                description: 'Attach an event listener to an element',
-                hint: 'Use the addEventListener() method to attach the event listener'
-            },
-            removeEventListener: {
-                name: 'Remove Event Listener',
-                description: 'Remove an event listener from an element',
-                hint: 'Use the removeEventListener() method with the same function reference used in addEventListener()'
-            },
-            eventDelegation: {
-                name: 'Event Delegation',
-                description: 'Implement event delegation for dynamically added elements',
-                hint: 'Attach the event listener to a parent element and use event.target to determine which child was clicked'
-            }
-        }
-    }
-};
-
+const runTests = require('./testRunner');
+const { updateProgress, isTestCompleted, loadProgress } = require('./progressTracker');
+const subjects = require('./subjects');
 
 function getSubjectChoices() {
     const progress = loadProgress();
-    return Object.entries(subjects).map(([value, { name }]) => {
-        const isCompleted = progress[value] && Object.keys(progress[value]).length === subjects[value].tests.length;
-        return {
-            title: isCompleted ? chalk.green(`${name} ✓`) : name,
-            value
-        };
-    });
+    return Object.entries(subjects).map(([value, { name }]) => ({
+        title: isSubjectCompleted(value, progress) ? chalk.green(`${name} ✓`) : name,
+        value
+    }));
+}
+
+function isSubjectCompleted(subject, progress) {
+    return progress[subject] && Object.keys(progress[subject]).length === Object.keys(subjects[subject].tests).length;
 }
 
 function getTestChoices(subject) {
@@ -80,24 +33,12 @@ function getTestChoices(subject) {
 }
 
 async function chooseSubject() {
-    const progress = loadProgress();
-    const choices = Object.entries(subjects).map(([value, { name, tests }]) => {
-        const totalTests = Object.keys(tests).length;
-        const completedTests = Object.keys(tests).filter(test => isTestCompleted(value, test)).length;
-        const isCompleted = completedTests === totalTests;
-        return {
-            title: isCompleted ? chalk.green(`${name} ✓`) : name,
-            value
-        };
-    });
-
     const response = await prompts({
         type: 'select',
         name: 'subject',
         message: 'Which subject would you like to run tests for?',
-        choices
+        choices: getSubjectChoices()
     });
-
     return response.subject;
 }
 
@@ -108,7 +49,6 @@ async function chooseTest(subject) {
         message: `Which ${subjects[subject].name} test would you like to run?`,
         choices: getTestChoices(subject)
     });
-
     return response.test;
 }
 
@@ -126,12 +66,7 @@ function ensureImplementationFileExists(implementationPath) {
     }
 }
 
-async function runTestWithWatcher(subject, test) {
-    const implementationPath = getImplementationPath(subject, test);
-    const testPath = getTestPath(subject, test);
-
-    ensureImplementationFileExists(implementationPath);
-
+function displayTestInfo(subject, test) {
     console.clear();
     console.log(chalk.cyan(`Test: ${subjects[subject].tests[test].name}`));
     console.log(chalk.yellow(`\nDescription: ${subjects[subject].tests[test].description}`));
@@ -139,10 +74,29 @@ async function runTestWithWatcher(subject, test) {
     if (subjects[subject].tests[test].hintShown) {
         console.log(chalk.magenta(`\nHint: ${subjects[subject].tests[test].hint}`));
     }
+}
+
+async function runTestWithWatcher(subject, test) {
+    const implementationPath = getImplementationPath(subject, test);
+    const testPath = getTestPath(subject, test);
+
+    ensureImplementationFileExists(implementationPath);
+    displayTestInfo(subject, test);
 
     console.log('\nWatching for file changes. Press "q" to stop and go back.\n');
 
-    const watcher = chokidar.watch(implementationPath, {
+    const watcher = createWatcher(implementationPath);
+    const rl = createReadlineInterface();
+
+    return new Promise((resolve) => {
+        setupKeyPressHandler(rl, watcher, resolve);
+        setupWatcher(watcher, subject, test, testPath);
+        runTest(subject, test, testPath);
+    });
+}
+
+function createWatcher(implementationPath) {
+    return chokidar.watch(implementationPath, {
         persistent: true,
         usePolling: true,
         interval: 100,
@@ -151,55 +105,49 @@ async function runTestWithWatcher(subject, test) {
             pollInterval: 100
         }
     });
+}
 
+function createReadlineInterface() {
     const rl = readline.createInterface({
         input: process.stdin,
         output: process.stdout
     });
-
     rl.input.setRawMode(true);
     rl.input.resume();
+    return rl;
+}
 
-    return new Promise((resolve) => {
-        const onKeyPress = (str, key) => {
-            if (key.name === 'q') {
-                rl.input.removeListener('keypress', onKeyPress);
-                rl.close();
-                watcher.close();
-                resolve();
-            }
-        };
+function setupKeyPressHandler(rl, watcher, resolve) {
+    const onKeyPress = (str, key) => {
+        if (key.name === 'q') {
+            rl.input.removeListener('keypress', onKeyPress);
+            rl.close();
+            watcher.close();
+            resolve();
+        }
+    };
+    rl.input.on('keypress', onKeyPress);
+}
 
-        rl.input.on('keypress', onKeyPress);
+function setupWatcher(watcher, subject, test, testPath) {
+    watcher.on('change', () => runTest(subject, test, testPath));
+}
 
-        const runTest = async () => {
-            console.clear();
-            console.log(chalk.cyan(`Test: ${subjects[subject].tests[test].name}`));
-            console.log(chalk.yellow(`\nDescription: ${subjects[subject].tests[test].description}`));
+async function runTest(subject, test, testPath) {
+    displayTestInfo(subject, test);
+    const passed = await runTests(testPath);
+    updateTestProgress(subject, test, passed);
+    console.log('\nWatching for file changes. Press "q" to stop and go back.');
+}
 
-            if (subjects[subject].tests[test].hintShown) {
-                console.log(chalk.magenta(`\nHint: ${subjects[subject].tests[test].hint}`));
-            }
-
-            const passed = await runTests(testPath);
-
-            if (passed) {
-                updateProgress(subject, test);
-            } else if (isTestCompleted(subject, test)) {
-                // If the test was previously passed but now fails, update progress
-                const progress = loadProgress();
-                delete progress[subject][test];
-                saveProgress(progress);
-            }
-
-            console.log('\nWatching for file changes. Press "q" to stop and go back.');
-        };
-
-        watcher.on('change', runTest);
-
-        // Run the test once immediately
-        runTest();
-    });
+function updateTestProgress(subject, test, passed) {
+    if (passed) {
+        updateProgress(subject, test);
+    } else if (isTestCompleted(subject, test)) {
+        const progress = loadProgress();
+        delete progress[subject][test];
+        saveProgress(progress);
+    }
 }
 
 async function main() {
@@ -214,37 +162,13 @@ async function main() {
             if (test === 'back') break;
 
             while (true) {
-                console.clear();
-                console.log(chalk.cyan(`Test: ${subjects[subject].tests[test].name}`));
-                console.log(chalk.yellow(`\nDescription: ${subjects[subject].tests[test].description}`));
-
-                if (subjects[subject].tests[test].hintShown) {
-                    console.log(chalk.magenta(`\nHint: ${subjects[subject].tests[test].hint}`));
-                }
-
-                const choices = [
-                    { title: 'Run Test', value: 'run' },
-                    { title: 'Back to Test Selection', value: 'back' }
-                ];
-
-                if (!subjects[subject].tests[test].hintShown) {
-                    choices.splice(1, 0, { title: 'Show Hint', value: 'hint' });
-                }
-
-                const { action } = await prompts({
-                    type: 'select',
-                    name: 'action',
-                    message: 'What would you like to do?',
-                    choices: choices
-                });
-
+                displayTestInfo(subject, test);
+                const action = await chooseAction(subject, test);
                 if (action === 'back') break;
-
                 if (action === 'hint') {
                     subjects[subject].tests[test].hintShown = true;
                     continue;
                 }
-
                 if (action === 'run') {
                     await runTestWithWatcher(subject, test);
                     break;
@@ -252,8 +176,27 @@ async function main() {
             }
         }
     }
-
     console.log('Exiting...');
+}
+
+async function chooseAction(subject, test) {
+    const choices = [
+        { title: 'Run Test', value: 'run' },
+        { title: 'Back to Test Selection', value: 'back' }
+    ];
+
+    if (!subjects[subject].tests[test].hintShown) {
+        choices.splice(1, 0, { title: 'Show Hint', value: 'hint' });
+    }
+
+    const { action } = await prompts({
+        type: 'select',
+        name: 'action',
+        message: 'What would you like to do?',
+        choices: choices
+    });
+
+    return action;
 }
 
 main().catch(console.error);
