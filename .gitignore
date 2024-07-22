@@ -624,3 +624,4 @@ FodyWeavers.xsd
 *.sln.iml
 
 progress.json
+/.idea/git_toolbox_prj.xml
