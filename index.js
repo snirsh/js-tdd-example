@@ -7,13 +7,46 @@ const { updateProgress, isTestCompleted, loadProgress } = require('./progressTra
 const subjects = {
     'dom-manipulation': {
         name: 'DOM Manipulation',
-        tests: ['createElement', 'modifyElement', 'removeElement']
+        tests: {
+            createElement: {
+                name: 'Create Element',
+                description: 'Create a new element and add it to the DOM',
+                hint: 'Use document.createElement() to create the element and appendChild() to add it to the DOM'
+            },
+            modifyElement: {
+                name: 'Modify Element',
+                description: 'Modify an existing element in the DOM',
+                hint: 'Use methods like setAttribute(), classList.add(), or textContent to modify the element'
+            },
+            removeElement: {
+                name: 'Remove Element',
+                description: 'Remove an element from the DOM',
+                hint: 'Use removeChild() or remove() to delete the element from its parent'
+            }
+        }
     },
     events: {
         name: 'Events',
-        tests: ['addEventListener', 'removeEventListener', 'eventDelegation']
+        tests: {
+            addEventListener: {
+                name: 'Add Event Listener',
+                description: 'Attach an event listener to an element',
+                hint: 'Use the addEventListener() method to attach the event listener'
+            },
+            removeEventListener: {
+                name: 'Remove Event Listener',
+                description: 'Remove an event listener from an element',
+                hint: 'Use the removeEventListener() method with the same function reference used in addEventListener()'
+            },
+            eventDelegation: {
+                name: 'Event Delegation',
+                description: 'Implement event delegation for dynamically added elements',
+                hint: 'Attach the event listener to a parent element and use event.target to determine which child was clicked'
+            }
+        }
     }
 };
+
 
 function getSubjectChoices() {
     const progress = loadProgress();
@@ -28,9 +61,9 @@ function getSubjectChoices() {
 
 function getTestChoices(subject) {
     return [
-        ...subjects[subject].tests.map(test => ({
-            title: isTestCompleted(subject, test) ? chalk.green(`${test} ✓`) : test,
-            value: test
+        ...Object.entries(subjects[subject].tests).map(([value, { name }]) => ({
+            title: isTestCompleted(subject, value) ? chalk.green(`${name} ✓`) : name,
+            value
         })),
         { title: 'Back to subject menu', value: 'back' }
     ];
@@ -65,28 +98,66 @@ async function main() {
         if (!subject) break;
 
         let testIndex = 0;
-        const totalTests = subjects[subject].tests.length;
+        const totalTests = Object.keys(subjects[subject].tests).length;
 
         while (true) {
             console.clear();
             const test = await chooseTest(subject);
             if (test === 'back') break;
 
-            testIndex = subjects[subject].tests.indexOf(test);
+            testIndex = Object.keys(subjects[subject].tests).indexOf(test);
             const progress = `${testIndex + 1}/${totalTests}`;
 
-            console.clear();
-            console.log(chalk.cyan(`Running test ${progress}: ${test}`));
+            let hintShown = false;
 
-            const testPath = path.join('tests', subject, `${test}.test.js`);
-            const passed = await runTests(testPath);
+            while (true) {
+                console.clear();
+                console.log(chalk.cyan(`Test ${progress}: ${subjects[subject].tests[test].name}`));
+                console.log(chalk.yellow(`\nDescription: ${subjects[subject].tests[test].description}`));
 
-            if (passed) {
-                updateProgress(subject, test);
+                if (hintShown) {
+                    console.log(chalk.magenta(`\nHint: ${subjects[subject].tests[test].hint}`));
+                }
+
+                const choices = [
+                    { title: 'Run Test', value: 'run' },
+                    { title: 'Back to Test Selection', value: 'back' }
+                ];
+
+                if (!hintShown) {
+                    choices.splice(1, 0, { title: 'Show Hint', value: 'hint' });
+                }
+
+                const { action } = await prompts({
+                    type: 'select',
+                    name: 'action',
+                    message: 'What would you like to do?',
+                    choices: choices
+                });
+
+                if (action === 'back') break;
+
+                if (action === 'hint') {
+                    hintShown = true;
+                    continue;
+                }
+
+                if (action === 'run') {
+                    console.clear();
+                    console.log(chalk.cyan(`Running test ${progress}: ${subjects[subject].tests[test].name}`));
+
+                    const testPath = path.join('tests', subject, `${test}.test.js`);
+                    const passed = await runTests(testPath);
+
+                    if (passed) {
+                        updateProgress(subject, test);
+                    }
+
+                    console.log('\nPress Enter to continue...');
+                    await prompts({ type: 'text', name: 'continue', message: '' });
+                    break;
+                }
             }
-
-            console.log('\nPress Enter to continue...');
-            await prompts({ type: 'text', name: 'continue', message: '' });
         }
     }
 
