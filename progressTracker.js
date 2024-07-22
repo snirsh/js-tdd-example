@@ -34,4 +34,4 @@ function isTestCompleted(subject, test) {
     return progress[subject] && progress[subject][test];
 }
 
-module.exports = { updateProgress, isTestCompleted, loadProgress };
+module.exports = { updateProgress, isTestCompleted, loadProgress, saveProgress };

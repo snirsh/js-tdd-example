@@ -7,7 +7,7 @@ const chokidar = require('chokidar');
 const readline = require('readline');
 const fs = require('fs');
 
-const { updateProgress, isTestCompleted, loadProgress } = require('./progressTracker');
+const { updateProgress, isTestCompleted, loadProgress, saveProgress} = require('./progressTracker');
 
 const subjects = {
     'dom-manipulation': {
