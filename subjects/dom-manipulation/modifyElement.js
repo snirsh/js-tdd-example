@@ -2,7 +2,7 @@
  * This function should modify an existing element's text content.
  *
  */
-function modifyElement(document, id, newText) {
+function modifyElement(id, newText) {
     document.getElementById(id).innerText = newText;
 }
 

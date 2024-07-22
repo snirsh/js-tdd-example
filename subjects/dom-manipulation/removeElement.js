@@ -2,7 +2,7 @@
  * This function should modify an existing element's text content.
  *
  */
-function removeElement(document, id) {
+function removeElement(id) {
     document.getElementById(id).remove();
 }
 
