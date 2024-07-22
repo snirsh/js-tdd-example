@@ -4,10 +4,15 @@ const path = require('path');
 const progressFile = path.join(__dirname, 'progress.json');
 
 function loadProgress() {
-    if (fs.existsSync(progressFile)) {
-        return JSON.parse(fs.readFileSync(progressFile, 'utf8'));
+    try {
+        const data = fs.readFileSync(progressFile, 'utf8');
+        return JSON.parse(data);
+    } catch (error) {
+        if (error.code === 'ENOENT') {
+            return {};
+        }
+        throw error;
     }
-    return {};
 }
 
 function saveProgress(progress) {

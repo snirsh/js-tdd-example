@@ -28,6 +28,11 @@ const subjects = {
     events: {
         name: 'Events',
         tests: {
+            addClickListener: {
+                name: 'Add Click Listener',
+                description: 'Attach a click event listener to an element',
+                hint: 'Use the addEventListener() method with the "click" event type'
+            },
             addEventListener: {
                 name: 'Add Event Listener',
                 description: 'Attach an event listener to an element',
@@ -61,20 +66,31 @@ function getSubjectChoices() {
 
 function getTestChoices(subject) {
     return [
-        ...Object.entries(subjects[subject].tests).map(([value, { name }]) => ({
-            title: isTestCompleted(subject, value) ? chalk.green(`${name} ✓`) : name,
-            value
+        ...Object.entries(subjects[subject].tests).map(([test, { name }]) => ({
+            title: isTestCompleted(subject, test) ? chalk.green(`${name} ✓`) : name,
+            value: test
         })),
         { title: 'Back to subject menu', value: 'back' }
     ];
 }
 
 async function chooseSubject() {
+    const progress = loadProgress();
+    const choices = Object.entries(subjects).map(([value, { name, tests }]) => {
+        const totalTests = Object.keys(tests).length;
+        const completedTests = Object.keys(tests).filter(test => isTestCompleted(value, test)).length;
+        const isCompleted = completedTests === totalTests;
+        return {
+            title: isCompleted ? chalk.green(`${name} ✓`) : name,
+            value
+        };
+    });
+
     const response = await prompts({
         type: 'select',
         name: 'subject',
         message: 'Which subject would you like to run tests for?',
-        choices: getSubjectChoices()
+        choices
     });
 
     return response.subject;
