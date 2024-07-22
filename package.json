@@ -6,13 +6,19 @@
   "scripts": {
     "start": "node index.js"
   },
-  "keywords": ["javascript", "dom", "events", "tdd"],
+  "keywords": [
+    "javascript",
+    "dom",
+    "events",
+    "tdd"
+  ],
   "author": "",
   "license": "ISC",
   "devDependencies": {
+    "chalk": "^4.1.2",
     "jest": "^27.0.6",
     "jest-environment-jsdom": "^27.0.6",
-    "prompts": "^2.4.1",
-    "chalk": "^4.1.2"
+    "jest-watch-typeahead": "^2.2.2",
+    "prompts": "^2.4.1"
   }
 }
