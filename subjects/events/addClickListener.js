@@ -5,7 +5,7 @@
  * @param callback
  */
 function addClickListener(element, callback) {
-
+    element.addEventListener('click', callback);
 }
 
 module.exports = addClickListener;
