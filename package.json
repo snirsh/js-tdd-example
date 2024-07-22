@@ -4,7 +4,8 @@
   "description": "TDD approach to learning JS DOM manipulation and events",
   "main": "index.js",
   "scripts": {
-    "start": "node index.js"
+    "start": "node index.js",
+    "clear-watchman": "watchman watch-del-all && watchman shutdown-server"
   },
   "keywords": [
     "javascript",
@@ -16,6 +17,7 @@
   "license": "ISC",
   "devDependencies": {
     "chalk": "^4.1.2",
+    "chokidar": "^3.6.0",
     "jest": "^27.0.6",
     "jest-environment-jsdom": "^27.0.6",
     "jest-watch-typeahead": "^2.2.2",

@@ -1,7 +1,12 @@
+// index.js
 const prompts = require('prompts');
 const runTests = require('./testRunner');
 const path = require('path');
 const chalk = require('chalk');
+const chokidar = require('chokidar');
+const readline = require('readline');
+const fs = require('fs');
+
 const { updateProgress, isTestCompleted, loadProgress } = require('./progressTracker');
 
 const subjects = {
@@ -107,31 +112,113 @@ async function chooseTest(subject) {
     return response.test;
 }
 
+function getImplementationPath(subject, test) {
+    return path.join('subjects', subject, `${test}.js`);
+}
+
+function getTestPath(subject, test) {
+    return path.join('tests', subject, `${test}.test.js`);
+}
+
+function ensureImplementationFileExists(implementationPath) {
+    if (!fs.existsSync(implementationPath)) {
+        fs.writeFileSync(implementationPath, '// Write your implementation here\n');
+    }
+}
+
+async function runTestWithWatcher(subject, test) {
+    const implementationPath = getImplementationPath(subject, test);
+    const testPath = getTestPath(subject, test);
+
+    ensureImplementationFileExists(implementationPath);
+
+    console.clear();
+    console.log(chalk.cyan(`Test: ${subjects[subject].tests[test].name}`));
+    console.log(chalk.yellow(`\nDescription: ${subjects[subject].tests[test].description}`));
+
+    if (subjects[subject].tests[test].hintShown) {
+        console.log(chalk.magenta(`\nHint: ${subjects[subject].tests[test].hint}`));
+    }
+
+    console.log('\nWatching for file changes. Press "q" to stop and go back.\n');
+
+    const watcher = chokidar.watch(implementationPath, {
+        persistent: true,
+        usePolling: true,
+        interval: 100,
+        awaitWriteFinish: {
+            stabilityThreshold: 300,
+            pollInterval: 100
+        }
+    });
+
+    const rl = readline.createInterface({
+        input: process.stdin,
+        output: process.stdout
+    });
+
+    rl.input.setRawMode(true);
+    rl.input.resume();
+
+    return new Promise((resolve) => {
+        const onKeyPress = (str, key) => {
+            if (key.name === 'q') {
+                rl.input.removeListener('keypress', onKeyPress);
+                rl.close();
+                watcher.close();
+                resolve();
+            }
+        };
+
+        rl.input.on('keypress', onKeyPress);
+
+        const runTest = async () => {
+            console.clear();
+            console.log(chalk.cyan(`Test: ${subjects[subject].tests[test].name}`));
+            console.log(chalk.yellow(`\nDescription: ${subjects[subject].tests[test].description}`));
+
+            if (subjects[subject].tests[test].hintShown) {
+                console.log(chalk.magenta(`\nHint: ${subjects[subject].tests[test].hint}`));
+            }
+
+            const passed = await runTests(testPath);
+
+            if (passed) {
+                updateProgress(subject, test);
+            } else if (isTestCompleted(subject, test)) {
+                // If the test was previously passed but now fails, update progress
+                const progress = loadProgress();
+                delete progress[subject][test];
+                saveProgress(progress);
+            }
+
+            console.log('\nWatching for file changes. Press "q" to stop and go back.');
+        };
+
+        watcher.on('change', runTest);
+
+        // Run the test once immediately
+        runTest();
+    });
+}
+
 async function main() {
     while (true) {
         console.clear();
         const subject = await chooseSubject();
         if (!subject) break;
 
-        let testIndex = 0;
-        const totalTests = Object.keys(subjects[subject].tests).length;
-
         while (true) {
             console.clear();
             const test = await chooseTest(subject);
             if (test === 'back') break;
 
-            testIndex = Object.keys(subjects[subject].tests).indexOf(test);
-            const progress = `${testIndex + 1}/${totalTests}`;
-
-            let hintShown = false;
-
             while (true) {
                 console.clear();
-                console.log(chalk.cyan(`Test ${progress}: ${subjects[subject].tests[test].name}`));
+                console.log(chalk.cyan(`Test: ${subjects[subject].tests[test].name}`));
                 console.log(chalk.yellow(`\nDescription: ${subjects[subject].tests[test].description}`));
 
-                if (hintShown) {
+                if (subjects[subject].tests[test].hintShown) {
                     console.log(chalk.magenta(`\nHint: ${subjects[subject].tests[test].hint}`));
                 }
 
@@ -140,7 +227,7 @@ async function main() {
                     { title: 'Back to Test Selection', value: 'back' }
                 ];
 
-                if (!hintShown) {
+                if (!subjects[subject].tests[test].hintShown) {
                     choices.splice(1, 0, { title: 'Show Hint', value: 'hint' });
                 }
 
@@ -154,23 +241,12 @@ async function main() {
                 if (action === 'back') break;
 
                 if (action === 'hint') {
-                    hintShown = true;
+                    subjects[subject].tests[test].hintShown = true;
                     continue;
                 }
 
                 if (action === 'run') {
-                    console.clear();
-                    console.log(chalk.cyan(`Running test ${progress}: ${subjects[subject].tests[test].name}`));
-
-                    const testPath = path.join('tests', subject, `${test}.test.js`);
-                    const passed = await runTests(testPath);
-
-                    if (passed) {
-                        updateProgress(subject, test);
-                    }
-
-                    console.log('\nPress Enter to continue...');
-                    await prompts({ type: 'text', name: 'continue', message: '' });
+                    await runTestWithWatcher(subject, test);
                     break;
                 }
             }
