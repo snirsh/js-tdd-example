@@ -623,3 +623,4 @@ FodyWeavers.xsd
 # JetBrains Rider
 *.sln.iml
 
+progress.json

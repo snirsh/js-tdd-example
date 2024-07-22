@@ -7,9 +7,10 @@ function formatErrorMessage(failureMessage) {
 }
 
 async function runTests(testPath) {
-    // Temporarily redirect console.log to suppress Jest output
     const originalLog = console.log;
+    const originalStdoutWrite = process.stdout.write;
     console.log = () => {};
+    process.stdout.write = () => {};
 
     try {
         const results = await jest.runCLI(
@@ -21,8 +22,8 @@ async function runTests(testPath) {
             [process.cwd()]
         );
 
-        // Restore console.log
         console.log = originalLog;
+        process.stdout.write = originalStdoutWrite;
 
         const { numFailedTests, numPassedTests, testResults } = results.results;
 
@@ -38,10 +39,13 @@ async function runTests(testPath) {
         });
 
         console.log(chalk.bold(`\nPassed: ${numPassedTests}, Failed: ${numFailedTests}`));
+
+        return numFailedTests === 0;
     } catch (error) {
-        // Restore console.log in case of error
         console.log = originalLog;
+        process.stdout.write = originalStdoutWrite;
         console.error('An error occurred while running the tests:', error);
+        return false;
     }
 }
 
