@@ -7,7 +7,7 @@ const readline = require('readline');
 const fs = require('fs');
 
 const runTests = require('./testRunner');
-const { updateProgress, isTestCompleted, loadProgress } = require('./progressTracker');
+const { updateProgress, isTestCompleted, loadProgress, saveProgress } = require('./progressTracker');
 const subjects = require('./subjects');
 
 function getSubjectChoices() {
