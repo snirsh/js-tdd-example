@@ -5,10 +5,10 @@
  *          name: 'Subject Name', // to be displayed in the UI
  *         tests: [
  *             {
- *                 testName: {
-    *                 name: 'Test Name', // to be displayed in the UI
-    *                 description: 'Description of the test',
-    *                 hint: 'Hint to help the user complete the test'
+ *                 "testFileName": {
+ *                    name: 'Test Name', // to be displayed in the UI
+ *                    description: 'Description of the test',
+ *                    hint: 'Hint to help the user complete the test'
  *             }
  *         ]
  *     }
